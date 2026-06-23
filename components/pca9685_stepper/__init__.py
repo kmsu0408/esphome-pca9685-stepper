@@ -3,6 +3,9 @@ import esphome.codegen as cg
 from esphome.const import CONF_ID
 from esphome.components import output
 
+# stepper 컴포넌트 라이브러리 강제 오토로드 설정
+AUTO_LOAD = ["stepper"]
+
 # ESPHome 글로벌 네임스페이스 매핑
 ns = cg.esphome_ns
 Pca9685Stepper = ns.class_("Pca9685Stepper", cg.Component)

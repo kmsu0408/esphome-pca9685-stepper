@@ -3,12 +3,14 @@
 #include "esphome.h"
 #include <esp_system.h> // esp_random() 사용을 위한 헤더
 
-class Pca9685Stepper : public esphome::Component, public esphome::stepper::Stepper {
+namespace esphome {
+
+class Pca9685Stepper : public Component, public stepper::Stepper {
  public:
-  esphome::output::FloatOutput *pin_a;
-  esphome::output::FloatOutput *pin_b;
-  esphome::output::FloatOutput *pin_c;
-  esphome::output::FloatOutput *pin_d;
+  output::FloatOutput *pin_a;
+  output::FloatOutput *pin_b;
+  output::FloatOutput *pin_c;
+  output::FloatOutput *pin_d;
 
   uint32_t last_step_time{0};
   uint8_t step_state{0};
@@ -19,8 +21,8 @@ class Pca9685Stepper : public esphome::Component, public esphome::stepper::Stepp
   float last_c{-1.0f};
   float last_d{-1.0f};
 
-  Pca9685Stepper(esphome::output::FloatOutput *a, esphome::output::FloatOutput *b,
-                 esphome::output::FloatOutput *c, esphome::output::FloatOutput *d)
+  Pca9685Stepper(output::FloatOutput *a, output::FloatOutput *b,
+                 output::FloatOutput *c, output::FloatOutput *d)
       : pin_a(a), pin_b(b), pin_c(c), pin_d(d) {}
 
   // 중복 I2C 쓰기를 필터링하는 핀 제어 헬퍼 함수
@@ -88,3 +90,5 @@ class Pca9685Stepper : public esphome::Component, public esphome::stepper::Stepp
 
 // YAML 람다식에서 간편하게 static 캐스팅 없이 제어할 수 있도록 전역 인스턴스 포인터 선언
 inline Pca9685Stepper *global_pca9685_stepper = nullptr;
+
+} // namespace esphome
