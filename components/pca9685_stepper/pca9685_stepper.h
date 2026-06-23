@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome.h"
+#include "esphome/components/stepper/stepper.h" // 부모 클래스 stepper::Stepper 인식을 위한 헤더
 #include <esp_system.h> // esp_random() 사용을 위한 헤더
 
 namespace esphome {
@@ -54,7 +55,7 @@ class Pca9685Stepper : public Component, public stepper::Stepper {
       return;
     }
 
-    uint32_t now = millis();
+    uint32_t now = esphome::millis(); // ESP-IDF 호환을 위한 네임스페이스 명시 millis() 호출
     // 스텝 간 간격 계산 (밀리초)
     float speed = std::abs(this->max_speed);
     if (speed < 1.0f) speed = 1.0f; // 최저 속도 제한
