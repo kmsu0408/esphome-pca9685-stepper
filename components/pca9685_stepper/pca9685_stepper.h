@@ -7,47 +7,50 @@ namespace esphome {
 
 class Pca9685Stepper : public Component, public stepper::Stepper {
  public:
-  output::FloatOutput *pin_a;
-  output::FloatOutput *pin_b;
-  output::FloatOutput *pin_c;
-  output::FloatOutput *pin_d;
+  output::FloatOutput *m3_pwm;
+  output::FloatOutput *m3_in1;
+  output::FloatOutput *m3_in2;
+  output::FloatOutput *m4_pwm;
+  output::FloatOutput *m4_in1;
+  output::FloatOutput *m4_in2;
 
   uint32_t last_step_time{0};
   uint8_t step_state{0};
 
-  // I2C 쓰기 빈도를 줄이기 위한 상태 캐싱 변수들
-  float last_a{-1.0f};
-  float last_b{-1.0f};
-  float last_c{-1.0f};
-  float last_d{-1.0f};
+  // I2C 쓰기 빈도를 줄이기 위한 상태 캐싱 변수들 (6핀 확장)
+  float last_m3_pwm{-1.0f}, last_m3_in1{-1.0f}, last_m3_in2{-1.0f};
+  float last_m4_pwm{-1.0f}, last_m4_in1{-1.0f}, last_m4_in2{-1.0f};
 
-  Pca9685Stepper(output::FloatOutput *a, output::FloatOutput *b,
-                 output::FloatOutput *c, output::FloatOutput *d)
-      : pin_a(a), pin_b(b), pin_c(c), pin_d(d) {}
+  Pca9685Stepper(output::FloatOutput *m3_pwm_pin, output::FloatOutput *m3_in1_pin, output::FloatOutput *m3_in2_pin,
+                 output::FloatOutput *m4_pwm_pin, output::FloatOutput *m4_in1_pin, output::FloatOutput *m4_in2_pin)
+      : m3_pwm(m3_pwm_pin), m3_in1(m3_in1_pin), m3_in2(m3_in2_pin),
+        m4_pwm(m4_pwm_pin), m4_in1(m4_in1_pin), m4_in2(m4_in2_pin) {}
 
-  // 중복 I2C 쓰기를 필터링하는 핀 제어 헬퍼 함수
-  void set_pins(float a, float b, float c, float d) {
-    if (a != this->last_a) { this->pin_a->set_level(a); this->last_a = a; }
-    if (b != this->last_b) { this->pin_b->set_level(b); this->last_b = b; }
-    if (c != this->last_c) { this->pin_c->set_level(c); this->last_c = c; }
-    if (d != this->last_d) { this->pin_d->set_level(d); this->last_d = d; }
+  // 중복 I2C 쓰기를 필터링하는 H-브릿지 핀 제어 헬퍼 함수
+  void set_pins(float m3_p, float m3_1, float m3_2, float m4_p, float m4_1, float m4_2) {
+    if (m3_p != this->last_m3_pwm) { this->m3_pwm->set_level(m3_p); this->last_m3_pwm = m3_p; }
+    if (m3_1 != this->last_m3_in1) { this->m3_in1->set_level(m3_1); this->last_m3_in1 = m3_1; }
+    if (m3_2 != this->last_m3_in2) { this->m3_in2->set_level(m3_2); this->last_m3_in2 = m3_2; }
+    if (m4_p != this->last_m4_pwm) { this->m4_pwm->set_level(m4_p); this->last_m4_pwm = m4_p; }
+    if (m4_1 != this->last_m4_in1) { this->m4_in1->set_level(m4_1); this->last_m4_in1 = m4_1; }
+    if (m4_2 != this->last_m4_in2) { this->m4_in2->set_level(m4_2); this->last_m4_in2 = m4_2; }
   }
 
   void setup() override {
     // 초기화: 모든 핀을 비활성화하여 기동 초기 모터 과열 예방
-    this->set_pins(0.0f, 0.0f, 0.0f, 0.0f);
+    this->set_pins(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     // ESP32 하드웨어 RNG 기반 난수 시드 초기화로 매번 고유한 무작위 패턴 생성
     srand(esp_random());
   }
 
   void dump_config() override {
-    ESP_LOGCONFIG("pca9685_stepper", "PCA9685 Stepper Motor Driver");
+    ESP_LOGCONFIG("pca9685_stepper", "PCA9685 H-Bridge TB6612 Stepper Driver");
   }
 
   void loop() override {
     if (this->current_position == this->target_position) {
-      // 목표 위치 도달 시, 모터 과열 및 전원 소모 방지를 위해 모든 코일 전류 차단 (Freewheeling)
-      this->set_pins(0.0f, 0.0f, 0.0f, 0.0f);
+      // 목표 위치 도달 시, 모터 과열 및 전원 소모 방지를 위해 H-브릿지 모든 출력 전류 차단 (Freewheeling)
+      this->set_pins(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
       return;
     }
 
@@ -69,19 +72,19 @@ class Pca9685Stepper : public Component, public stepper::Stepper {
         this->current_position--;
       }
 
-      // 4상 스텝 모터의 2상 여자(2-phase excitation) 출력 시퀀스 설정
+      // TB6612 H-브릿지 2상 여자(2-phase excitation) 출력 제어 시퀀스
       switch (this->step_state) {
-        case 0:
-          this->set_pins(1.0f, 0.0f, 1.0f, 0.0f);
+        case 0: // 코일 1 (+), 코일 2 (+)
+          this->set_pins(1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f);
           break;
-        case 1:
-          this->set_pins(0.0f, 1.0f, 1.0f, 0.0f);
+        case 1: // 코일 1 (-), 코일 2 (+)
+          this->set_pins(1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f);
           break;
-        case 2:
-          this->set_pins(0.0f, 1.0f, 0.0f, 1.0f);
+        case 2: // 코일 1 (-), 코일 2 (-)
+          this->set_pins(1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f);
           break;
-        case 3:
-          this->set_pins(1.0f, 0.0f, 0.0f, 1.0f);
+        case 3: // 코일 1 (+), 코일 2 (-)
+          this->set_pins(1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
           break;
       }
     }
