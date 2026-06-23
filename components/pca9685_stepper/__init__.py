@@ -23,8 +23,8 @@ CONFIG_SCHEMA = cv.Schema({
 }).extend(cv.COMPONENT_SCHEMA)
 
 async def to_code(config):
-    # 생성된 C++ 파일 상단에 헤더 파일을 강제 인클루드 하도록 지시
-    cg.add_global(cg.RawStatement('#include "pca9685_stepper.h"'))
+    # 생성된 C++ 파일 상단에 헤더 파일을 강제 인클루드 하도록 지시 (ESPHome 컴포넌트 풀 패스 사용)
+    cg.add_global(cg.RawStatement('#include "esphome/components/pca9685_stepper/pca9685_stepper.h"'))
 
     # 각 핀(PCA9685 FloatOutput 채널)의 C++ 변수 포인터 획득
     pin_a_var = await cg.get_variable(config[CONF_PIN_A])
